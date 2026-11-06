@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- the window only runs the app's own scripts -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http: file:; media-src 'self' data: blob: https: file:; font-src 'self' data:; connect-src 'self' data: blob: https: http://127.0.0.1:* http://localhost:*; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>JuicyChat Analytics Tool</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="analytics.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sb-left jat-app-only">
+        <div class="sb-row">
+          <div class="sb-id">
+          <div class="sb-top">
+            <div class="brand">
+              <div class="brand-mark">JA</div>
+              <div><strong>JuicyChat Analytics Tool</strong></div>
+            </div>
+            <div class="app-version" id="app-version" title="JuicyChat Analytics Tool version"></div>
+          </div>
+          </div>
+        </div>
+      </div>
+      <nav id="main-nav">
+        <button class="nav-btn active" data-view="dashboard"><span>⌂</span> Dashboard</button>
+        <button class="nav-btn" data-view="performance"><span>↗</span> Your Performance</button>
+        <button class="nav-btn" data-view="analysis"><span>◫</span> JuicyChat Analysis</button>
+        <button class="nav-btn" data-view="engines"><span>⚙</span> Engine Library</button>
+        <button class="nav-btn" data-view="settings"><span>☰</span> Settings</button>
+      </nav>
+      <div class="jat-update jat-app-only" role="group" aria-label="Application updates">
+        <span id="jat-update-status" role="status" aria-live="polite" class="jat-update-status">Checking for updates...</span>
+        <button type="button" id="jat-update-check" class="ghost">Check for updates</button>
+        <button type="button" id="jat-update-install" class="primary" hidden>Update &amp; Restart</button>
+      </div>
+      <div class="sidebar-note">Local desktop data<br><span>JuicyChat session stays in the app's private background browser.</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="view-title">Dashboard</h1>
+          <p id="view-subtitle">Research signals and your bots' performance in one place.</p>
+        </div>
+      </header>
+
+      <section class="view active" id="view-dashboard">
+        <div class="hero">
+          <div>
+            <div class="eyebrow">JUICYCHAT CREATION WORKSPACE</div>
+            <h2>Live engagement signals from JuicyChat.</h2>
+            <p>Collect 100 Recent + 100 Trending bots, measure the recurring success engines, and follow how your own bots do.</p>
+          </div>
+          <button class="primary big" data-jump="analysis">Analyze JuicyChat</button>
+        </div>
+        <div class="metric-grid" id="dashboard-metrics"></div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>Current Signals</h3><p>Latest patterns found across Recent and Trending.</p></div><button class="ghost" data-jump="engines">View Library</button></div>
+          <div id="dashboard-signals" class="signal-list empty">Run JuicyChat Analysis to populate this section.</div>
+        </div>
+      </section>
+
+      <section class="view" id="view-analysis">
+<div class="an-tabs" role="tablist" aria-label="Analysis sections"><button type="button" role="tab" class="on" data-an="release">When to release</button><button type="button" role="tab" data-an="research">Research set</button></div>
+<div id="an-research" hidden>
+        <div class="panel">
+          <div class="panel-head"><div><h3>Collect the research set</h3><p>Target: <strong id="analysis-target-label">100 Recent + 100 Trending</strong>. No browser window opens; the progress box shows what it is reading. It opens the JuicyChat homepage in the saved session, selects Recent or Trending by the page control, listens to the JSON responses JuicyChat itself loads, reads visible bot cards as a fallback, scrolls until the target is reached, and stores the records directly in the app.</p></div><div id="analysis-last-run" class="subtle"></div></div>
+          <div class="button-row">
+            <button id="collect-recent" class="secondary">Collect Recent</button>
+            <button id="collect-trending" class="secondary">Collect Trending</button>
+            <button id="collect-both" class="primary">Collect Both</button>
+          </div>
+          <div id="auto-status" class="auto-status"></div>
+          <div id="block-reminder" class="block-reminder"></div>
+          <div class="progress-box"><div id="collector-message">Ready.</div><div class="progress-track"><div id="collector-progress"></div></div></div>
+          <div id="block-discarded" class="block-discarded"></div>
+          <div id="dataset-metrics" class="metric-grid compact"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>Discover success engines</h3><p>Analyzes the collected cards locally and shows you the actual engine summary: the strongest relationship + hook + setting combinations, why those structures are keeping people chatting, how common each engine is, Recent vs Trending evidence, saturation, and example bots from the sample. No AI service is used.</p></div><button id="analyze-engines" class="primary">Analyze Success Engines</button></div>
+          <div id="analysis-summary" class="empty">No analysis yet.</div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>Collected Bots</h3><p>Raw collection records used by the analysis layer.</p></div></div>
+          <div class="table-wrap"><table><thead><tr><th data-tip="Which list the bot was collected from: Recent or Trending.">Source</th><th data-tip="The bot's position in that list when it was collected (1 = top).">Rank</th><th data-tip="The engagement number the page showed for the bot (chats and likes), scaled to a comparable estimate.">Engagement</th><th data-tip="The bot's name and the text of its card as collected.">Card</th></tr></thead><tbody id="bot-table"></tbody></table></div>
+        </div>
+</div>
+<div id="an-release">
+<div class="panel" id="timing-panel">
+          <div class="panel-head"><div><h3>When to release</h3><p id="timing-sub">Release times and likes of the bots the app has seen.</p></div><div class="button-row"><div class="rt-seg" id="timing-metric" role="group" aria-label="Metric"><button type="button" data-m="avg" class="on">Average per bot</button><button type="button" data-m="total">Total</button></div><button type="button" class="ghost" id="timing-refresh" title="Reload the data">↻</button></div></div>
+          <div id="timing-body" class="rt-body"><p class="micro">Loading…</p></div>
+        </div>
+</div>
+      </section>
+
+      <section class="view" id="view-performance">
+        <div class="panel">
+          <div class="panel-head"><div><h3>Your Bot Performance</h3><p>Your bots are read from the account you signed in with in Settings, automatically every day (Settings &gt; Automatic daily pulls) or whenever you click Pull.</p></div><div class="button-row"><button id="perf-pull" class="primary">↻ Pull now</button></div></div>
+          <div id="performance-content" class="empty">Sign in in Settings, then click Pull now.</div>
+        </div>
+      </section>
+
+      <section class="view" id="view-engines">
+        <div class="panel">
+          <div class="panel-head"><div><h3>Success Engine Library</h3><p>Abstract patterns discovered from the latest Recent + Trending dataset.</p></div></div>
+          <div id="engine-library" class="empty">No engine analysis yet.</div>
+        </div>
+      </section>
+
+      <section class="view" id="view-settings">
+        <div class="two-col set-cols">
+          <div class="set-col">
+          <div class="panel" id="signin-panel">
+            <div class="panel-head"><div><h3 id="signin-title">Your JuicyChat account</h3><p id="signin-sub">Paste a magic link from your JuicyChat account email and press Sign in. The app signs in by itself in the background (no browser window) and keeps the session. JuicyChat Analysis and Performance both use it.</p></div></div>
+            <div id="runtime-box" hidden></div>
+            <div class="si-block">
+              <div class="input-row">
+                <input id="magic-link" type="password" placeholder="https://... magic link">
+                <button id="open-login" class="primary">Sign in</button>
+              </div>
+              <div class="session-row">
+                <div id="session-status" class="session-status unknown"><span class="session-dot"></span><div><strong>Session not checked</strong><small>Sign in once, then the app will reuse that private JuicyChat session.</small></div></div>
+                <div class="session-actions"><button id="check-session" class="ghost">Check Session</button><button id="reset-session" class="ghost danger-ghost">Reset Saved Login</button></div>
+              </div>
+            </div>
+            <div id="set-accounts"></div>
+            <p class="micro">If the account is ever logged out, the app asks for a new magic link in a popup.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div><h3>JuicyChat Collection</h3><p>Adjust the targets or gender filter without changing code.</p></div></div>
+            <label class="stack">Recent target<input id="target-recent" type="number" min="1" max="500"></label>
+            <label class="stack">Trending target<input id="target-trending" type="number" min="1" max="500"></label>
+            <label class="stack">Gender filter<select id="gender-filter"><option>Female</option><option>All</option><option>Male</option></select></label>
+            <label class="stack">JuicyChat home URL<input id="juicy-home-url" type="url"></label>
+          </div>
+          <div class="panel" id="block-panel">
+            <div class="panel-head"><div><h3>Blocked tags</h3><p>Bots that carry any of these JuicyChat tags are never pulled, and are left out of the analysis.</p></div></div>
+            <div id="block-chips" class="block-chips"></div>
+            <div class="block-add">
+              <input id="block-input" type="text" placeholder="Type or pick a tag to block" autocomplete="off">
+              <button id="block-add" class="ghost sm" type="button">Block</button>
+            </div>
+            <div class="block-add">
+              <button id="block-fetch" class="ghost sm" type="button">Read tags from JuicyChat</button>
+              <span id="block-note" class="micro"></span>
+            </div>
+            <div id="block-pick" class="block-pick"></div>
+            <p class="micro">Press Save Settings to apply. Blocking a tag also removes those bots from the lists already collected and redoes the analysis without them.</p>
+          </div>
+          </div>
+          <div class="set-col">
+          <div class="panel">
+            <div class="panel-head"><div><h3>Automatic daily pulls</h3></div></div>
+            <p class="micro">Set a separate time for each tab. Both default to 8:00 PM EST (fixed UTC-05:00).</p>
+            <label class="stack">Pull timezone
+              <select id="pull-timezone">
+                <option value="computer">Computer timezone - detected automatically</option>
+                <option value="est">8:00 PM EST offset - fixed UTC-05:00</option>
+              </select>
+            </label>
+            <p class="micro" id="pull-zone-note">Detected computer timezone: —. Ordinary timestamps use your computer's clock.</p>
+            <p class="micro" id="pull-zone-follow">These times follow the computer timezone, including daylight-saving and timezone changes.</p>
+            <div class="pull-card">
+              <label class="check-row"><input type="checkbox" id="auto-collect"> Collect Recent + Trending every day and update the analysis</label>
+              <label class="pull-time">JuicyChat Analysis time <input id="collect-time" type="time" value="20:00"></label>
+              <p class="micro" id="collect-next">Next: —</p>
+            </div>
+            <div class="pull-card">
+              <label class="check-row"><input type="checkbox" id="auto-performance"> Pull my bots for the Performance tab every day</label>
+              <label class="pull-time">Performance time <input id="perf-time" type="time" value="20:00"></label>
+              <p class="micro" id="perf-next">Next: —</p>
+            </div>
+            <div class="pull-card">
+              <label class="check-row"><input type="checkbox" id="auto-morning"> Also pull your bots in the morning (the same pull as the Performance tab)</label>
+              <label class="pull-time">Morning time <input id="morning-time" type="time" value="08:00"></label>
+              <p class="micro" id="morning-next">Optional. Off by default.</p>
+            </div>
+            <label class="check-row jat-app-only"><input type="checkbox" id="open-at-login"> Start the JuicyChat Analytics Tool with Windows (minimized), so the daily pulls happen even if you forget to open it</label>
+          </div>
+          </div>
+        </div>
+        <div class="set-save">
+          <span id="save-note" class="save-note">These settings are saved when you press Save Settings</span>
+          <button id="save-settings" class="primary">Save Settings</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <div id="bg-pull" class="bg-pull hidden" role="status" aria-live="polite">
+    <div class="bg-pull-head"><b id="bg-pull-title">Automatic run</b><span id="bg-pull-time"></span><button id="bg-pull-x" type="button" title="Hide this box (the run keeps going)">&times;</button></div>
+    <div id="bg-pull-what" class="bg-pull-what"></div>
+    <div id="bg-pull-msg" class="bg-pull-msg"></div>
+    <div class="bg-pull-bar"><i id="bg-pull-fill"></i></div>
+  </div>
+  <div id="busy" class="busy hidden">
+    <div class="busy-card">
+      <div class="busy-head">
+        <div class="spinner"></div>
+        <div class="busy-copy"><strong id="busy-title">Working...</strong><span id="busy-text">Please keep this window open.</span></div>
+        <span id="busy-status-pill" class="busy-status-pill">WORKING</span>
+      </div>
+      <div id="collector-live" class="collector-live hidden">
+        <div class="collector-live-top">
+          <div><span id="collector-live-source" class="collector-source-label">Preparing</span><strong id="collector-live-count">0 / 100</strong></div>
+          <div class="collector-elapsed"><span>Elapsed</span><strong id="collector-elapsed">0:00</strong></div>
+        </div>
+        <div class="collector-progress-block">
+          <div class="collector-progress-label"><span>Current feed</span><strong id="collector-source-percent">0%</strong></div>
+          <div class="collector-big-track"><div id="collector-source-bar"></div></div>
+        </div>
+        <div id="collector-overall-block" class="collector-progress-block hidden">
+          <div class="collector-progress-label"><span>Overall collection</span><strong id="collector-overall-count">0 / 200</strong></div>
+          <div class="collector-big-track overall"><div id="collector-overall-bar"></div></div>
+        </div>
+        <div id="pull-steps" class="pull-steps hidden"></div>
+        <div class="collector-stat-grid" id="collector-stat-grid">
+          <div><span>Scan pass</span><strong id="collector-pass">0 / 260</strong></div>
+          <div><span>Page cards</span><strong id="collector-page-cards">0</strong></div>
+          <div><span>API records</span><strong id="collector-network">0</strong></div>
+          <div><span>Overlap</span><strong id="collector-duplicates">0</strong></div>
+          <div><span>No-new passes</span><strong id="collector-stagnant">0</strong></div>
+          <div><span>Batch</span><strong id="collector-batch">1 / 1</strong></div>
+        </div>
+        <div class="collector-log-title"><span>Live activity</span><span id="collector-stall-label">Scanning</span></div>
+        <div id="collector-live-log" class="collector-live-log"></div>
+        <div class="collector-actions"><button id="collector-min" class="secondary" type="button" title="Keep it running in a small card in the bottom-right corner and use other tabs">Minimize</button><button id="cancel-collection" class="danger">Cancel Collection</button><button id="collector-close" class="primary hidden">Close</button></div>
+      </div>
+    </div>
+  </div>
+  <script src="embed-bridge.js"></script>
+  <script src="app.js"></script>
+  <script src="collapse.js"></script>
+  <script src="timing.js"></script>
+  <script src="timingview.js"></script>
+  <script src="updater.js"></script>
+</body>
+</html>
