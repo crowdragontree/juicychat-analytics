@@ -1,0 +1,147 @@
+name: Build JuicyChat Analytics Tool (Windows and Linux)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    name: Windows (64-bit)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check version
+        run: |
+          node -e "const p=require('./package.json');if(!/^\d+\.\d+\.\d+$/.test(p.version)||p.name!=='juicychat-analytics')process.exit(1);console.log('PASS: v'+p.version)"
+      - name: Install and run source tests (REQUIRED)
+        shell: pwsh
+        run: |
+          npm install --no-audit --no-fund
+          npm run check
+      - name: Build Windows application
+        shell: pwsh
+        run: |
+          npx @electron/packager . "JuicyChat Analytics Tool" --platform=win32 --arch=x64 --out=dist --overwrite --prune=true --executable-name="JuicyChat Analytics Tool" --icon=assets/icon.ico
+          $exe='dist/JuicyChat Analytics Tool-win32-x64/JuicyChat Analytics Tool.exe'
+          if (!(Test-Path $exe)) { throw 'Windows executable is missing.' }
+          if (!(Test-Path 'dist/JuicyChat Analytics Tool-win32-x64/resources/app/core/analytics.js')) { throw 'The analytics core was not packaged.' }
+      - name: TEST actual Windows app - every tab draws (REQUIRED)
+        shell: pwsh
+        run: |
+          $env:JAT_E2E_REPORT = Join-Path $env:RUNNER_TEMP 'jat-win-e2e.json'
+          $exe=(Resolve-Path 'dist/JuicyChat Analytics Tool-win32-x64/JuicyChat Analytics Tool.exe').Path
+          $proc=Start-Process -FilePath $exe -ArgumentList '--analytics-e2e' -PassThru
+          if (-not $proc.WaitForExit(180000)) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; throw 'The tab test took over 3 minutes.' }
+          if (!(Test-Path $env:JAT_E2E_REPORT)) { throw "App wrote no test report (exit $($proc.ExitCode))." }
+          $report=Get-Content $env:JAT_E2E_REPORT -Raw | ConvertFrom-Json
+          if (-not $report.ok) { throw (Get-Content $env:JAT_E2E_REPORT -Raw) }
+          Write-Host 'PASS: Windows packaged app, all five tabs.'
+      - name: TEST automatic update installs and restarts on Windows (REQUIRED)
+        shell: pwsh
+        run: |
+          # Installs a test v9.9.9 the same way Check for updates + Update & Restart does.
+          $src=(Resolve-Path 'dist/JuicyChat Analytics Tool-win32-x64').Path
+          $root=Join-Path $env:RUNNER_TEMP 'update test'
+          Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path $root | Out-Null
+          $install=Join-Path $root 'Installed App'; $next=Join-Path $root 'next'
+          Copy-Item -LiteralPath $src -Destination $install -Recurse
+          Copy-Item -LiteralPath $src -Destination $next -Recurse
+          node -e 'const f=process.argv[1],p=require(f);p.version=process.argv[2];require(`fs`).writeFileSync(f,JSON.stringify(p,null,2))' (Join-Path $next 'resources/app/package.json') '9.9.9'
+          $zip=Join-Path $root 'JuicyChat-Analytics-Windows-x64.zip'
+          Compress-Archive -Path (Join-Path $next '*') -DestinationPath $zip -Force
+          Remove-Item -LiteralPath $next -Recurse -Force
+          $env:JAT_UPDATE_ZIP=$zip; $env:JAT_UPDATE_VERSION='9.9.9'
+          $old=Start-Process -FilePath (Join-Path $install 'JuicyChat Analytics Tool.exe') -ArgumentList '--analytics-update-e2e' -PassThru
+          if (-not $old.WaitForExit(240000)) { Stop-Process -Id $old.Id -Force; throw 'The app did not close to install the update.' }
+          $ok=$false
+          for ($i=0; $i -lt 90; $i++) {
+            $pkg=Get-Content (Join-Path $install 'resources/app/package.json') -Raw -ErrorAction SilentlyContinue
+            $running=Get-Process -Name 'JuicyChat Analytics Tool' -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$install*" }
+            if ($pkg -match '"version": "9.9.9"' -and $running) { $ok=$true; break }
+            Start-Sleep -Seconds 2
+          }
+          Start-Sleep -Seconds 15
+          $leftovers=Get-ChildItem -LiteralPath $root -Force -Directory | Where-Object { $_.Name -match '^\.jat-(stage|backup|unpack)-' }
+          Get-Process -Name 'JuicyChat Analytics Tool' -ErrorAction SilentlyContinue | Stop-Process -Force
+          $log=Join-Path $env:APPDATA 'JuicyChat Analytics Tool/updates/last-update.log'
+          if (Test-Path $log) { Get-Content $log }
+          if (-not $ok) { throw 'The update was not installed and restarted.' }
+          if ($leftovers) { throw "Update folders were left behind: $($leftovers.Name -join ', ')" }
+          Write-Host 'PASS: Windows app downloaded, installed and restarted into the update, then cleaned up.'
+      - name: Create Windows portable ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path 'dist/JuicyChat Analytics Tool-win32-x64/*' -DestinationPath 'JuicyChat-Analytics-Windows-x64.zip' -Force
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip=[IO.Compression.ZipFile]::OpenRead((Resolve-Path 'JuicyChat-Analytics-Windows-x64.zip').Path); $names=$zip.Entries.FullName; $zip.Dispose()
+          foreach ($n in 'JuicyChat Analytics Tool.exe','resources/app/package.json') { if ($names -notcontains $n) { throw "Release ZIP is missing $n" } }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JuicyChat-Analytics-Windows-x64
+          path: JuicyChat-Analytics-Windows-x64.zip
+          if-no-files-found: error
+  linux:
+    name: Linux (64-bit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install and run source tests (REQUIRED)
+        run: |
+          npm install --no-audit --no-fund
+          npm run check
+      - name: Build Linux application
+        run: |
+          npx @electron/packager . 'JuicyChat Analytics Tool' --platform=linux --arch=x64 --out=dist --overwrite --prune=true --executable-name="JuicyChat Analytics Tool" --icon=assets/icon.png
+          test -f 'dist/JuicyChat Analytics Tool-linux-x64/JuicyChat Analytics Tool'
+          chmod +x 'dist/JuicyChat Analytics Tool-linux-x64/JuicyChat Analytics Tool'
+      - name: TEST actual Linux app - every tab draws (REQUIRED)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb zip
+          export JAT_E2E_REPORT="$RUNNER_TEMP/jat-linux-e2e.json"
+          timeout 180s xvfb-run -a --server-args='-screen 0 1600x1000x24' 'dist/JuicyChat Analytics Tool-linux-x64/JuicyChat Analytics Tool' --no-sandbox --disable-gpu --analytics-e2e
+          test -s "$JAT_E2E_REPORT"
+          node -e 'const r=require(process.env.JAT_E2E_REPORT); if(!r.ok){console.error(r);process.exit(1)} console.log("PASS: Linux packaged app, all five tabs")'
+      - name: TEST automatic update installs and restarts on Linux (REQUIRED)
+        run: |
+          src="$PWD/dist/JuicyChat Analytics Tool-linux-x64"
+          root="$RUNNER_TEMP/update test"; rm -rf "$root"; mkdir -p "$root"
+          cp -a "$src" "$root/Installed App"; cp -a "$src" "$root/next"
+          node -e 'const f=process.argv[1],p=require(f);p.version="9.9.9";require("fs").writeFileSync(f,JSON.stringify(p,null,2))' "$root/next/resources/app/package.json"
+          (cd "$root/next" && zip -qr "$root/JuicyChat-Analytics-Linux-x64.zip" .); rm -rf "$root/next"
+          export JAT_UPDATE_ZIP="$root/JuicyChat-Analytics-Linux-x64.zip" JAT_UPDATE_VERSION=9.9.9
+          Xvfb :96 -screen 0 1600x1000x24 >/dev/null 2>&1 &
+          xpid=$!; export DISPLAY=:96; sleep 2
+          timeout 240s "$root/Installed App/JuicyChat Analytics Tool" --no-sandbox --disable-gpu --analytics-update-e2e
+          app="$root/Installed App/JuicyChat Analytics Tool"; ok=0
+          for i in $(seq 1 90); do
+            if grep -q '"version": "9.9.9"' "$root/Installed App/resources/app/package.json" 2>/dev/null && pgrep -f "$app" >/dev/null; then ok=1; break; fi
+            sleep 2
+          done
+          sleep 15
+          leftovers=$(ls -A "$root" | grep -E '^\.jat-(stage|backup|unpack)-' || true)
+          pkill -f "$app" || true; kill $xpid || true
+          log="$HOME/.config/JuicyChat Analytics Tool/updates/last-update.log"; [ -f "$log" ] && cat "$log"
+          [ "$ok" = 1 ] || { echo 'FAIL: the update was not installed and restarted.'; exit 1; }
+          [ -z "$leftovers" ] || { echo "FAIL: update folders were left behind: $leftovers"; exit 1; }
+          echo 'PASS: Linux app downloaded, installed and restarted into the update, then cleaned up.'
+      - name: Create Linux portable ZIP
+        run: |
+          cd dist
+          mv 'JuicyChat Analytics Tool-linux-x64' JuicyChat-Analytics-linux-x64
+          zip -qr ../JuicyChat-Analytics-Linux-x64.zip JuicyChat-Analytics-linux-x64
+          cd ..
+          unzip -l JuicyChat-Analytics-Linux-x64.zip | grep -q 'JuicyChat-Analytics-linux-x64/JuicyChat Analytics Tool$'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JuicyChat-Analytics-Linux-x64
+          path: JuicyChat-Analytics-Linux-x64.zip
+          if-no-files-found: error
