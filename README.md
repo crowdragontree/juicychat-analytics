@@ -25,14 +25,6 @@
 ### With the JuicyChat Creator Tool
 - When this app is installed, the JuicyChat Creator Tool (v1.5.1 and later) shows an Analytics tab that runs this app's own code, so this app's updates show there automatically. The Creator Tool keeps its own sign-in and data. The two apps never pull from JuicyChat at the same time: one waits until the other is done.
 
-## Building Windows / Linux releases
-
-1. Upload this **extracted source folder's contents** to the `crowdragontree/juicychat-analytics` GitHub repository, including `.github`.
-2. Select **Actions → Build JuicyChat Analytics Tool (Windows and Linux)**.
-3. Both the Windows and Linux jobs must pass all required tests (source tests, every tab in the packaged app, and the automatic update).
-4. Download the generated artifacts. Extract the outer GitHub artifact ZIP and obtain `JuicyChat-Analytics-Windows-x64.zip` and `JuicyChat-Analytics-Linux-x64.zip`.
-5. Publish a **v1.0.0** release with those two inner ZIPs as release assets, using their existing filenames, and `RELEASE_NOTES_v1.0.0.md` as the release notes.
-
 The program is `JuicyChat Analytics Tool.exe` (Windows) / `JuicyChat Analytics Tool` (Linux). **Check for updates → Update & Restart** installs newer releases from this repository. Do not rename the release asset ZIPs.
 
 ## Local source use
