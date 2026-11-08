@@ -20,3 +20,7 @@
 
 ## Questions or Problems?
 HMU on PG's server.
+
+## Update: Editor's Choice popup
+
+When a pull reads the whole Editor's Choice feed and one of your bots that was in it is no longer there, a popup lists those bots so you can unpin them from your lounge, the same as Blueprint Studio. "Done, I unpinned them" clears the list; "Close (keep the list)" keeps it under the **Left Editor's Choice** button in Your Performance. A pull that could not read Editor's Choice completely never counts a bot as having left it.

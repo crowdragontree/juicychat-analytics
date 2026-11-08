@@ -142,6 +142,8 @@ function create({userData, sharedDir, appName, host = 'analytics', send = () => 
   const mergeEvents = (a, evs) => { a.events = a.events || []; const seen = new Set(a.events.map(e => e.id)); let added = 0;
     for (const e of evs) { if (!e.id || seen.has(e.id)) continue; seen.add(e.id); a.events.push(e); added++; }
     a.events.sort((x, y) => (Number(y.at) || Date.parse(y.at) || 0) - (Number(x.at) || Date.parse(x.at) || 0)); if (a.events.length > 8000) a.events.length = 8000; return added; };
+  // true when this pull read the whole Editor's Choice feed (so a bot missing from it really has left it, rather than the read having failed)
+  const editorRead = (d) => { try { const sc = d && d.feedsScanned, tot = d && d.feedTotals; if (!sc || typeof sc.editor !== 'number') return false; if ((d.warnings || []).some(w => /^\s*editor/i.test(String(w)))) return false; return !(typeof (tot || {}).editor === 'number' && sc.editor < Math.min(tot.editor, 500)); } catch { return false; } };
   async function pullRaw(quiet = false) {
     needRuntime();
     const upd = fn => quiet ? (store.updateQuiet(fn), null) : store.update(fn);
@@ -160,7 +162,7 @@ function create({userData, sharedDir, appName, host = 'analytics', send = () => 
         bgStep(`Saving ${r.rows.length} bots from the ${ACCOUNTS[k]}...`, {current: 0, account: ACCOUNTS[k], target: 1, indeterminate: true});
         await tick();
         upd(s => { const a = ensureAccounts(s)[k];
-          n = mergePull(a, r.rows, r.profileUrl || a.url);
+          n = mergePull(a, r.rows, r.profileUrl || a.url, {editorOk: editorRead(r.diag || {})});
           const d = r.diag || {};
           if (Array.isArray(d.events) && d.events.length) events = mergeEvents(a, d.events);
           if (d.me) { a.signedIn = {...(a.signedIn || {}), ok: true, userId: d.me.userId, userName: d.me.userName, checkedAt: new Date().toISOString()}; delete a.loggedOut; }
@@ -300,6 +302,8 @@ function create({userData, sharedDir, appName, host = 'analytics', send = () => 
       return store.get();
     },
     performancePull: () => pullMyBotsNow(false),
+    // the bots that have left Editor's Choice (listed for you to unpin by hand): 'seen' stops the popup coming up again, 'clear' empties the list
+    performanceEditorGone: (action) => store.update(s => { for (const a of Object.values(s.accounts || {})) { if (!a || !a.editorGone) continue; if (action === 'clear') a.editorGone = {}; else for (const e of Object.values(a.editorGone)) e.seen = true; } }),
     // a rating chosen by hand for one bot (SFW / NSFW / 18+), or null to go back to what was detected
     perfSetRating: (account, url, label) => store.update(s => {
       const a = s.accounts && s.accounts[account]; if (!a) return;

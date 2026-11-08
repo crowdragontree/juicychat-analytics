@@ -1,7 +1,7 @@
 'use strict';
 const {contextBridge,ipcRenderer}=require('electron');
 // What the window can ask the analytics core for (core/analytics.js, methods). Each one goes over the channel 'jat:<name>'.
-const METHODS=['getState','saveSettings','tagsList','tagsFetch','openLogin','authStatus','finishLogin','resetLogin','collect','cancelCollect','analyzeEngines','performancePull','perfSetRating','timingPool','successAims','historyClear','copyText','appVersion','hostInfo','runtimeStatus','runtimeInstall'];
+const METHODS=['getState','saveSettings','tagsList','tagsFetch','openLogin','authStatus','finishLogin','resetLogin','collect','cancelCollect','analyzeEngines','performancePull','performanceEditorGone','perfSetRating','timingPool','successAims','historyClear','copyText','appVersion','hostInfo','runtimeStatus','runtimeInstall'];
 const EVENTS={onCollectorProgress:'collector:progress',onAuthStatus:'juicy:authStatus',onAnalysisProgress:'analysis:progress',onAutoRun:'auto:run',onBgStep:'bg:step',onNeedLogin:'auth:needLogin',onRuntimeProgress:'runtime:progress'};
 const api={};
 for(const m of METHODS)api[m]=(...args)=>ipcRenderer.invoke('jat:'+m,...args);

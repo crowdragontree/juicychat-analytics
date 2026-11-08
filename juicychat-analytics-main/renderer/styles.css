@@ -2098,3 +2098,6 @@ body.ai-mini-on .lai-act,body.bg-on .lai-act{bottom:150px}
 .tm-legend .lg-spell{background:rgba(255,92,112,.35);border-bottom:2px solid #ff5c70}
 .tm-legend .lg-gram{background:rgba(78,161,255,.35);border-bottom:2px solid #4ea1ff}
 .tm-legend .lg-word{background:rgba(196,140,255,.3);border-bottom:2px dotted #c48cff}
+
+/* bots that left Editor's Choice */
+.ec-list{margin:8px 0 14px;padding:10px 14px 10px 30px;border:1px solid #33273c;border-radius:12px;background:#120d17;max-height:46vh;overflow:auto}.ec-list li{margin:6px 0;line-height:1.45}.ec-list a{margin-left:6px}

@@ -764,7 +764,25 @@ async function renderRuntime(refresh){const host=$('runtime-box');if(!host)retur
   $('runtime-install').onclick=async()=>{RT.installing=true;RT.err='';renderRuntime(false);try{const r=await window.juicyApp.runtimeInstall();RT.ready=!!r.ready;RT.installing=false;toast('The JuicyChat scanner is installed. Paste your magic link and press Sign in.');}catch(e){RT.installing=false;RT.err=e.message||String(e);toast(RT.err,true);}renderRuntime(false);};
 }
 function renderSettings(){renderSignIns();bindBlocked();renderBlocked();renderRuntime();const s=state.settings;$('auto-collect').checked=s.autoCollect!==false;$('auto-performance').checked=s.autoPerformance!==false;{const ol=$('open-at-login');if(ol)ol.checked=!!s.openAtLogin;}$('pull-timezone').value=s.pullTimeZone==='computer'?'computer':'est';$('collect-time').value=s.collectTime||'20:00';$('perf-time').value=s.perfTime||'20:00';$('auto-morning').checked=s.autoMorning===true;$('morning-time').value=s.morningTime||'08:00';$('target-recent').value=s.targetRecent;$('target-trending').value=s.targetTrending;$('gender-filter').value=s.gender||'Female';$('juicy-home-url').value=s.juicyHomeUrl||'https://www.juicychat.ai';refreshPullNotes();if(window.Collapse)window.Collapse.apply($('view-settings'),'set');}
-function renderAll(){if(!state)return;renderDashboard();renderAnalysis();renderEngines();renderPerformance();renderAutoStatus();renderBlockReminder();renderDiscarded();renderSettings();}
+// bots that have left Editor's Choice, for you to unpin from the lounge by hand (the same popup as Blueprint Studio)
+function ecList(){const out=[],names=(typeof PERF_ACCTS_ALL==='object'&&PERF_ACCTS_ALL)||{main:'Your Account'};for(const [k,a] of Object.entries(state.accounts||{})){const g=(a&&a.editorGone)||{};for(const [id,e] of Object.entries(g))out.push({id,acct:names[k]||k,title:e.title||'(untitled bot)',url:e.url||'',seen:!!e.seen});}return out;}
+function ecClose(){const m=$('ec-modal');if(m)m.remove();}
+function ecShow(){
+  const list=ecList();ecClose();if(!list.length)return;
+  const m=document.createElement('div');m.className='upd-modal';m.id='ec-modal';m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');
+  m.innerHTML=`<div class="upd-box"><h3>No longer in Editor's Choice (${list.length})</h3><p class="upd-sub">These bots were in Editor's Choice at an earlier pull and are not now. Unpin them from your lounge:</p><ul class="ec-list">${list.map(x=>`<li><b>${esc(x.title)}</b>${IS_SHARE?'':` <span class="micro">${esc(x.acct)}</span>`}${x.url?` <a href="${esc(x.url)}" target="_blank" rel="noopener">open</a>`:''}</li>`).join('')}</ul><div class="button-row"><button id="ec-done" class="primary">Done, I unpinned them</button><button id="ec-close" class="ghost">Close (keep the list)</button></div></div>`;
+  document.body.appendChild(m);
+  const seen=async()=>{try{state=await window.juicyApp.performanceEditorGone('seen');}catch{}};
+  $('ec-done').onclick=async()=>{try{state=await window.juicyApp.performanceEditorGone('clear');}catch(e){toast(e.message,true);}ecClose();renderAll();};
+  $('ec-close').onclick=async()=>{await seen();ecClose();renderAll();};
+  m.addEventListener('keydown',e=>{if(e.key==='Escape'){seen();ecClose();}});$('ec-close').focus();
+}
+function ecCheck(){
+  const list=ecList(),b=$('perf-ec');
+  if(b){b.style.display=list.length?'':'none';b.textContent=`Left Editor's Choice (${list.length})`;b.onclick=ecShow;}
+  if(list.some(x=>!x.seen)&&!$('ec-modal'))ecShow();
+}
+function renderAll(){if(!state)return;try{ecCheck();}catch(e){console.error(e);}renderDashboard();renderAnalysis();renderEngines();renderPerformance();renderAutoStatus();renderBlockReminder();renderDiscarded();renderSettings();}
 function bindStatic(){
   qsa('.nav-btn').forEach(b=>b.onclick=()=>switchView(b.dataset.view));qsa('[data-jump]').forEach(b=>b.onclick=()=>switchView(b.dataset.jump));
   $('open-login').onclick=async()=>{try{const link=$('magic-link').value.trim();if(!link)return toast('Paste a fresh JuicyChat magic link first.',true);renderAuthStatus({signedIn:null,status:'checking',message:'Signing in in the background...'});const r=await window.juicyApp.openLogin(link);renderAuthStatus(r.auth);if(r.ok){$('magic-link').value='';toast('Signed in. The session is saved and ready for collection.');}else toast(r.auth?.message||'The sign-in was not confirmed. Use a fresh magic link.',true);}catch(e){renderAuthStatus({signedIn:false,status:'signed-out',message:e.message||String(e)});toast(e.message,true);}};
